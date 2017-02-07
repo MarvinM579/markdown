@@ -2,15 +2,20 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const fs = require('fs')
 const pg = require('pg');
+const randomString = require('randomstring');
+const token = randomString.generate(8);
+
 
 const app = express();
-var client = new pg.Client({
-    user:'postgres',
-    database:'markdown',
-    passwd:'rocket',
-    host:'localhost'
-});
 
+function auth(req, res, next) {
+    if (req.query.token === token) {
+        next()
+    } else {
+        res.status(401);
+        res.json({error: 'You are not logged in lol'});
+    }
+}
 
 
 
@@ -22,7 +27,19 @@ app.get('/', function(req, res){
 
 });
 
-app.put('/documents/:file', function (req, res){
+app.post('/api/login', function(req, res) {
+    var username = req.body.username;
+    var password = req.body.password;
+    if (username === 'marvin' && password === 'rocket') {
+        res.json({username: username, token: token});
+        console.log(token);
+    } else {
+        res.status(401);
+        res.json({error: 'Wrong login'});
+    }
+});
+
+app.put('/documents/:file', auth, function (req, res){
     let file = req.params.file;
     let filepath = './data/' + file;
     let contents = req.body.contents;
@@ -36,7 +53,7 @@ app.put('/documents/:file', function (req, res){
     });
 });
 
-app.get('/documents/:file', function (req, res){
+app.get('/documents/:file', auth, function (req, res){
     let file = req.params.file;
     let filepath = './data/' + file;
     fs.readFile(filepath, function(err, buffer){
@@ -48,7 +65,7 @@ app.get('/documents/:file', function (req, res){
     });
 });
 
-app.get('/documents/:file/display', function (req, res){
+app.get('/documents/:file/display', auth, function (req, res){
     let file = req.params.file;
     let filepath = './data/' + file;
     fs.readFile(filepath, function(err, buffer){
@@ -63,7 +80,7 @@ app.get('/documents/:file/display', function (req, res){
     });
 });
 
-app.get('/documents', function (req, res){
+app.get('/documents', auth, function (req, res){
     fs.readdir('./data/', function(err, files){
         if (err){
             res.status(500).json({message: 'What even is this?', error: err.message});
@@ -72,7 +89,7 @@ app.get('/documents', function (req, res){
     });
 });
 
-app.delete('/documents/:file', function (req, res){
+app.delete('/documents/:file', auth, function (req, res){
     let file = req.params.file;
     let filepath = './data/' + file;
     fs.unlink(filepath, function(err, files){
